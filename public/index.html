@@ -41,6 +41,10 @@
     textarea { resize: vertical; height: 220px; border-radius: 2px; }
     .output { white-space: pre-wrap; font-family: inherit; }
     .output:empty::before { content: "Your reading will appear here."; color: #aeaea7; }
+    .output[hidden] { display: none; }
+    .loading-notice { min-height: 220px; padding-top: 8px; color: #64645e; }
+    .loading-notice strong { font-size: 18px; font-weight: 550; }
+    .loading-notice p { max-width: 360px; margin: 12px 0 0; font-size: 14px; line-height: 1.7; }
     .panel-bottom { display: flex; justify-content: flex-end; align-items: center; min-height: 28px; margin-top: 16px; }
     .character-count { font-size: 11px; color: #92928b; font-variant-numeric: tabular-nums; }
     .copy { border: 1px solid #e2e2dd; border-radius: 6px; padding: 5px 11px; background: #fff; font-size: 11px; color: #64645e; }
@@ -68,6 +72,7 @@
       .panel { padding: 20px; }
       textarea, .output { min-height: 150px; font-size: 17px; }
       textarea { height: 150px; }
+      .loading-notice { min-height: 150px; }
       .controls { padding: 20px; flex-wrap: wrap; }
       .options { width: 100%; gap: 14px; }
       .convert { width: 100%; }
@@ -109,7 +114,11 @@
             <h2 id="output-label">Your reading</h2>
             <span>CONVERTED OUTPUT</span>
           </div>
-          <pre class="output" id="output" tabindex="0" aria-labelledby="output-label"></pre>
+          <div class="loading-notice" id="loading-notice" role="status" aria-live="polite">
+            <strong id="loading-title">Loading from CDN…</strong>
+            <p id="loading-detail">Fetching converter libraries from jsDelivr. Conversion will start automatically when ready.</p>
+          </div>
+          <pre class="output" id="output" tabindex="0" aria-labelledby="output-label" hidden></pre>
           <div class="panel-bottom"><button type="button" class="copy" id="copy" disabled aria-label="Copy converted output">Copy</button></div>
         </section>
       </div>
@@ -134,11 +143,11 @@
             </select>
           </div>
         </div>
-        <button type="submit" class="convert" id="convert" disabled>Convert →</button>
+        <button type="submit" class="convert" id="convert" disabled>Loading from CDN…</button>
       </div>
       <div class="status-bar" id="status-bar" data-state="loading">
         <span class="status-dot" aria-hidden="true"></span>
-        <span id="status" role="status" aria-live="polite">Loading Kuromoji dictionary (~18MB, cached after first load)...</span>
+        <span id="status" role="status" aria-live="polite">Loading converter libraries from jsDelivr CDN...</span>
       </div>
     </form>
     <footer class="notes">
@@ -156,6 +165,9 @@
     const copyButton = document.getElementById('copy');
     const status = document.getElementById('status');
     const statusBar = document.getElementById('status-bar');
+    const loadingNotice = document.getElementById('loading-notice');
+    const loadingTitle = document.getElementById('loading-title');
+    const loadingDetail = document.getElementById('loading-detail');
     let kuroshiro;
     let busy = false;
 
@@ -184,6 +196,7 @@
       if (!kuroshiro || busy) return;
       busy = true;
       convertButton.disabled = true;
+      convertButton.textContent = 'Converting…';
       copyButton.disabled = true;
       copyButton.textContent = 'Copy';
       setStatus('Converting...', 'loading');
@@ -217,6 +230,7 @@
       } finally {
         busy = false;
         convertButton.disabled = false;
+        convertButton.textContent = 'Convert →';
       }
     }
 
@@ -241,13 +255,22 @@
           loadScript('https://cdn.jsdelivr.net/npm/kuroshiro@1.2.0/dist/kuroshiro.min.js'),
           loadScript('https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js')
         ]);
+        loadingTitle.textContent = 'Downloading dictionary from CDN…';
+        loadingDetail.textContent = 'Loading the Kuromoji dictionary from jsDelivr (~18MB). The first load may take a moment; please keep this page open.';
+        convertButton.textContent = 'Loading dictionary…';
+        setStatus('Downloading Kuromoji dictionary from jsDelivr CDN (~18MB; please wait)...', 'loading');
         const converter = new Kuroshiro.default();
         await converter.init(new KuromojiAnalyzer({ dictPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict' }));
         kuroshiro = converter;
+        loadingNotice.hidden = true;
+        output.hidden = false;
         await convert();
       } catch (error) {
         console.error(error);
-        setStatus('Could not load the dictionary. Check your connection and reload the page.', 'error');
+        loadingTitle.textContent = 'Could not load from CDN.';
+        loadingDetail.textContent = 'Check your internet connection and access to jsDelivr, then reload this page.';
+        convertButton.textContent = 'CDN unavailable';
+        setStatus('Could not load the converter from CDN. Check your connection and reload the page.', 'error');
       }
     }
     initialize();

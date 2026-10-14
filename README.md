@@ -18,6 +18,8 @@ npm run dev
 
 Open the localhost URL printed by Wrangler (normally `http://localhost:8787`). The initial dictionary download can take a moment. Conversion runs automatically once initialization finishes; subsequent conversions use the **Convert →** button. Library and dictionary responses use normal browser/CDN caching, not an offline cache.
 
+While initializing, the output panel and disabled button explicitly show **Loading from CDN…**, followed by **Downloading dictionary from CDN…** with the approximate 18 MB download size. Once ready, the loading notice is replaced by the conversion output. CDN failures remain visible in the output panel with instructions to check the connection and reload.
+
 ## Deploy
 
 ```sh
@@ -86,3 +88,5 @@ Local Wrangler/browser verification on 2026-10-14 covered:
 This is a PoC, not an accuracy guarantee for arbitrary Japanese text. No permanent automated test suite is configured; verification used the running app in Chromium and Chrome.
 
 Cloudflare deployment succeeded on 2026-10-14 (version `974db879-3b69-4000-b9cb-c5f429ea8c7b`), and the public HTTPS page was fetched successfully. The live-site browser conversion check was stopped at the user's request; the conversion evidence above is from the local app.
+
+The prominent CDN-loading feedback update was smoke-checked by executing the actual inline application script with controlled DOM/CDN events: library loading, dictionary loading, successful readiness, script failure, and dictionary failure all passed. Browser automation was not repeated for that update.
