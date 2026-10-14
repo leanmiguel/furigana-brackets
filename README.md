@@ -18,7 +18,7 @@ npm run dev
 
 Open the localhost URL printed by Wrangler (normally `http://localhost:8787`). The initial dictionary download can take a moment. Conversion runs automatically once initialization finishes; subsequent conversions use the **Convert →** button. Library and dictionary responses use normal browser/CDN caching, not an offline cache.
 
-While initializing, the output panel and disabled button explicitly show **Loading from CDN…**, followed by **Downloading dictionary from CDN…** with the approximate 18 MB download size. Once ready, the loading notice is replaced by the conversion output. CDN failures remain visible in the output panel with instructions to check the connection and reload.
+Startup uses a dedicated, centered loading screen with a spinner and two real initialization stages: loading converter libraries and preparing the Japanese dictionary. The entire converter stays hidden until initialization and the automatic example conversion finish. No fabricated percentage or countdown is shown. The spinner respects reduced-motion preferences. On loading failure, the screen stops spinning, explains the error, and offers **Reload and try again**.
 
 ## Deploy
 
@@ -108,3 +108,7 @@ npm run dev -- --local-protocol https
 ```
 
 Wrangler uses a local development certificate. In browser network diagnostics, all 12 dictionary URLs must resolve to the page's own origin under `/dict/`, return 200, and lead to the exact sample conversion above. Do not treat a successful HTML response as proof that the converter initialized.
+
+The dedicated loading screen was verified over local HTTPS with actual browser requests held at each stage: no converter controls were visible during library or dictionary loading; the completed example output appeared when the workspace was revealed. Desktop and 390px mobile screenshots were inspected, with no mobile horizontal overflow. A blocked-library request produced the persistent error screen; unblocking it and clicking **Reload and try again** successfully recovered.
+
+The deployed loading-screen update was also verified on HTTPS: startup appeared with the converter hidden, then switched directly to the enabled converter with the exact example output after completion. Deployment version: `dca6a892-7a3b-43a8-bc78-3bad4044f0be`.
