@@ -66,13 +66,21 @@ For Katakana and Romaji, only the matched readings are transliterated with Kuros
 
 ## Dependencies and privacy
 
-Only Wrangler is installed as a development dependency. Browser dependencies are pinned and loaded from jsDelivr:
+Only Wrangler is installed as a development dependency. The pinned Kuroshiro and analyzer libraries are loaded from jsDelivr; the Kuromoji dictionary is vendored unchanged in `public/dict/` and served from the same Cloudflare deployment:
 
 - [Kuroshiro 1.2.0](https://github.com/hexenq/kuroshiro) — MIT
 - [Kuroshiro Kuromoji analyzer 1.1.0](https://github.com/hexenq/kuroshiro-analyzer-kuromoji) — MIT
-- [Kuromoji 0.1.2 dictionary](https://github.com/takuyaa/kuromoji.js) — Apache-2.0
+- [Kuromoji 0.1.2 dictionary](https://github.com/takuyaa/kuromoji.js) — upstream [Apache-2.0 license](public/dict/LICENSE-2.0.txt) and [IPADIC/NAIST/ICOT notices](public/dict/NOTICE.md) are included verbatim.
 
 The dictionary download is approximately 18 MB. User text is processed locally and is not sent to a conversion service. Cloudflare and jsDelivr still receive ordinary page/asset requests. Loading requires access to jsDelivr, and third-party CDN scripts execute in the page. No analytics or text persistence is included. Dictionary readings can be ambiguous or incorrect and should be reviewed.
+
+### HTTPS dictionary loading fix
+
+Kuromoji's browser loader uses `path.join` on `dictPath`. An absolute URL such as `https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict` becomes `https:/cdn.jsdelivr.net/...` (one slash). On an HTTPS page, the browser resolves this against the page's own origin, requesting nonexistent assets. On HTTP localhost, the same malformed URL resolves to the external HTTPS host, hiding the production-only bug.
+
+The app now uses `dictPath: '/dict'`, with all 12 original `.dat.gz` files from Kuromoji 0.1.2 included as Static Assets. This removes URL-scheme normalization from dictionary loading; no library patch or request-rewriting shim is needed.
+
+The earlier assumption that the reported stall was merely an 18 MB download/decompression delay was incorrect: the original dictionary URLs did not resolve to the dictionary on the deployed HTTPS site.
 
 ## Verification
 
@@ -87,6 +95,16 @@ Local Wrangler/browser verification on 2026-10-14 covered:
 
 This is a PoC, not an accuracy guarantee for arbitrary Japanese text. No permanent automated test suite is configured; verification used the running app in Chromium and Chrome.
 
-Cloudflare deployment succeeded on 2026-10-14 (version `974db879-3b69-4000-b9cb-c5f429ea8c7b`), and the public HTTPS page was fetched successfully. The live-site browser conversion check was stopped at the user's request; the conversion evidence above is from the local app.
+The initial deployment succeeded on 2026-10-14 (version `974db879-3b69-4000-b9cb-c5f429ea8c7b`), and the public HTTPS HTML was fetched successfully. Those checks did not establish HTTPS dictionary initialization correctness; that production-only gap is addressed by the same-origin dictionary fix above.
 
 The prominent CDN-loading feedback update was smoke-checked by executing the actual inline application script with controlled DOM/CDN events: library loading, dictionary loading, successful readiness, script failure, and dictionary failure all passed. Browser automation was not repeated for that update.
+
+The same-origin dictionary fix was verified on both local HTTPS and the deployed HTTPS site. On the deployed site, all 12 `/dict/*.dat.gz` requests returned HTTP 200, automatic conversion produced the exact default output, Convert became enabled, and no browser errors were reported. A MutationObserver recorded completion at 5,825 ms after navigation in that check; this is one observed timing, not a performance guarantee. Cloudflare deployment version: `20cf8f02-ca12-4a11-9603-284747940742`.
+
+For future initialization changes, check HTTPS explicitly rather than relying on HTTP localhost:
+
+```sh
+npm run dev -- --local-protocol https
+```
+
+Wrangler uses a local development certificate. In browser network diagnostics, all 12 dictionary URLs must resolve to the page's own origin under `/dict/`, return 200, and lead to the exact sample conversion above. Do not treat a successful HTML response as proof that the converter initialized.

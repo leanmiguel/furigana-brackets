@@ -151,7 +151,7 @@
       </div>
     </form>
     <footer class="notes">
-      <p>Your text stays in this browser. Dictionary files are fetched from jsDelivr.</p>
+      <p>Your text stays in this browser. Dictionary files are served by Cloudflare.</p>
       <p>Powered by <a href="https://github.com/hexenq/kuroshiro" target="_blank" rel="noopener noreferrer">Kuroshiro</a> + Kuromoji · Readings may need review.</p>
     </footer>
     <noscript>This converter requires JavaScript to load its dictionary and process text in your browser.</noscript>
@@ -256,21 +256,22 @@
           loadScript('https://cdn.jsdelivr.net/npm/kuroshiro-analyzer-kuromoji@1.1.0/dist/kuroshiro-analyzer-kuromoji.min.js')
         ]);
         loadingTitle.textContent = 'Downloading dictionary from CDN…';
-        loadingDetail.textContent = 'Loading the Kuromoji dictionary from jsDelivr (~18MB). The first load may take a moment; please keep this page open.';
+        loadingDetail.textContent = 'Loading the Kuromoji dictionary from this site’s Cloudflare CDN (~18MB). The first load may take a moment; please keep this page open.';
         convertButton.textContent = 'Loading dictionary…';
-        setStatus('Downloading Kuromoji dictionary from jsDelivr CDN (~18MB; please wait)...', 'loading');
+        setStatus('Downloading Kuromoji dictionary from this site’s Cloudflare CDN (~18MB; please wait)...', 'loading');
         const converter = new Kuroshiro.default();
-        await converter.init(new KuromojiAnalyzer({ dictPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict' }));
+        // Kuromoji's path.join corrupts absolute HTTPS URLs on HTTPS pages.
+        await converter.init(new KuromojiAnalyzer({ dictPath: '/dict' }));
         kuroshiro = converter;
         loadingNotice.hidden = true;
         output.hidden = false;
         await convert();
       } catch (error) {
         console.error(error);
-        loadingTitle.textContent = 'Could not load from CDN.';
-        loadingDetail.textContent = 'Check your internet connection and access to jsDelivr, then reload this page.';
-        convertButton.textContent = 'CDN unavailable';
-        setStatus('Could not load the converter from CDN. Check your connection and reload the page.', 'error');
+        loadingTitle.textContent = 'Could not load the converter.';
+        loadingDetail.textContent = 'Check your internet connection and access to this site and jsDelivr, then reload this page.';
+        convertButton.textContent = 'Loading failed';
+        setStatus('Could not load the converter. Check your connection and reload the page.', 'error');
       }
     }
     initialize();
