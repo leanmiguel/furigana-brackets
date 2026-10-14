@@ -66,49 +66,23 @@ For Katakana and Romaji, only the matched readings are transliterated with Kuros
 
 ## Dependencies and privacy
 
-Only Wrangler is installed as a development dependency. The pinned Kuroshiro and analyzer libraries are loaded from jsDelivr; the Kuromoji dictionary is vendored unchanged in `public/dict/` and served from the same Cloudflare deployment:
+Only Wrangler is installed as a development dependency. All runtime libraries and the pinned Kuromoji dictionary are fetched from jsDelivr; no dictionary files are stored in the current source tree or shipped as Static Assets:
 
 - [Kuroshiro 1.2.0](https://github.com/hexenq/kuroshiro) — MIT
 - [Kuroshiro Kuromoji analyzer 1.1.0](https://github.com/hexenq/kuroshiro-analyzer-kuromoji) — MIT
-- [Kuromoji 0.1.2 dictionary](https://github.com/takuyaa/kuromoji.js) — upstream [Apache-2.0 license](public/dict/LICENSE-2.0.txt) and [IPADIC/NAIST/ICOT notices](public/dict/NOTICE.md) are included verbatim.
+- [Kuromoji 0.1.2 dictionary](https://github.com/takuyaa/kuromoji.js) — upstream [Apache-2.0 license](https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/LICENSE-2.0.txt) and [IPADIC/NAIST/ICOT notices](https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/NOTICE.md).
 
 The dictionary download is approximately 18 MB. User text is processed locally and is not sent to a conversion service. Cloudflare and jsDelivr still receive ordinary page/asset requests. Loading requires access to jsDelivr, and third-party CDN scripts execute in the page. No analytics or text persistence is included. Dictionary readings can be ambiguous or incorrect and should be reviewed.
 
-### HTTPS dictionary loading fix
+### Dictionary delivery
 
-Kuromoji's browser loader uses `path.join` on `dictPath`. An absolute URL such as `https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict` becomes `https:/cdn.jsdelivr.net/...` (one slash). On an HTTPS page, the browser resolves this against the page's own origin, requesting nonexistent assets. On HTTP localhost, the same malformed URL resolves to the external HTTPS host, hiding the production-only bug.
+Kuromoji's loader uses filesystem-style `path.join`, which damages absolute HTTPS dictionary URLs. A relative path avoids that bug.
 
-The app now uses `dictPath: '/dict'`, with all 12 original `.dat.gz` files from Kuromoji 0.1.2 included as Static Assets. This removes URL-scheme normalization from dictionary loading; no library patch or request-rewriting shim is needed.
+The app uses `dictPath: '/dict'`. `public/_redirects` sends each dictionary request to the original pinned jsDelivr file with an HTTP 302 redirect:
 
-The earlier assumption that the reported stall was merely an 18 MB download/decompression delay was incorrect: the original dictionary URLs did not resolve to the dictionary on the deployed HTTPS site.
-
-## Verification
-
-Local Wrangler/browser verification on 2026-10-14 covered:
-
-- Exact default Hiragana bracket output, plus exact Katakana and Romaji bracket variants.
-- Okurigana, literal Ruby HTML, Normal, and Spaced output through the actual UI.
-- Multiline text, empty input, and literal `<script>` text without creating HTML nodes.
-- One-click copying and the actual clipboard contents.
-- Disabled controls before loading; a blocked-CDN initialization error keeps conversion disabled.
-- Desktop and mobile screenshots; the 390px mobile layout stacks panels without horizontal overflow.
-
-This is a PoC, not an accuracy guarantee for arbitrary Japanese text. No permanent automated test suite is configured; verification used the running app in Chromium and Chrome.
-
-The initial deployment succeeded on 2026-10-14 (version `974db879-3b69-4000-b9cb-c5f429ea8c7b`), and the public HTTPS HTML was fetched successfully. Those checks did not establish HTTPS dictionary initialization correctness; that production-only gap is addressed by the same-origin dictionary fix above.
-
-The prominent CDN-loading feedback update was smoke-checked by executing the actual inline application script with controlled DOM/CDN events: library loading, dictionary loading, successful readiness, script failure, and dictionary failure all passed. Browser automation was not repeated for that update.
-
-The same-origin dictionary fix was verified on both local HTTPS and the deployed HTTPS site. On the deployed site, all 12 `/dict/*.dat.gz` requests returned HTTP 200, automatic conversion produced the exact default output, Convert became enabled, and no browser errors were reported. A MutationObserver recorded completion at 5,825 ms after navigation in that check; this is one observed timing, not a performance guarantee. Cloudflare deployment version: `20cf8f02-ca12-4a11-9603-284747940742`.
-
-For future initialization changes, check HTTPS explicitly rather than relying on HTTP localhost:
-
-```sh
-npm run dev -- --local-protocol https
+```text
+/dict/* https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/:splat 302
 ```
 
-Wrangler uses a local development certificate. In browser network diagnostics, all 12 dictionary URLs must resolve to the page's own origin under `/dict/`, return 200, and lead to the exact sample conversion above. Do not treat a successful HTML response as proof that the converter initialized.
+The browser follows the redirect and downloads directly from jsDelivr, whose dictionary responses allow cross-origin access. Kuromoji only joins the safe relative path; it never joins an absolute CDN URL. No library patch, Worker backend, or dictionary download/build step is needed. Cloudflare's [Static Assets redirect rules](https://developers.cloudflare.com/workers/static-assets/redirects/) support external destinations and splats.
 
-The dedicated loading screen was verified over local HTTPS with actual browser requests held at each stage: no converter controls were visible during library or dictionary loading; the completed example output appeared when the workspace was revealed. Desktop and 390px mobile screenshots were inspected, with no mobile horizontal overflow. A blocked-library request produced the persistent error screen; unblocking it and clicking **Reload and try again** successfully recovered.
-
-The deployed loading-screen update was also verified on HTTPS: startup appeared with the converter hidden, then switched directly to the enabled converter with the exact example output after completion. Deployment version: `dca6a892-7a3b-43a8-bc78-3bad4044f0be`.

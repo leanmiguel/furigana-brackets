@@ -185,7 +185,7 @@
       </div>
     </form>
     <footer class="notes">
-      <p>Your text stays in this browser. Dictionary files are served by Cloudflare.</p>
+      <p>Your text stays in this browser. Dictionary files are fetched from jsDelivr.</p>
       <p>Powered by <a href="https://github.com/hexenq/kuroshiro" target="_blank" rel="noopener noreferrer">Kuroshiro</a> + Kuromoji · Readings may need review.</p>
     </footer>
     <noscript>This converter requires JavaScript to load its dictionary and process text in your browser.</noscript>
@@ -301,9 +301,9 @@
         dictionaryStep.dataset.state = 'active';
         dictionaryState.textContent = 'Loading';
         loadingTitle.textContent = 'Loading Japanese dictionary…';
-        loadingDetail.textContent = 'Downloading about 18 MB from Cloudflare and preparing the dictionary in your browser. Please keep this page open.';
+        loadingDetail.textContent = 'Downloading about 18 MB from jsDelivr and preparing the dictionary in your browser. Please keep this page open.';
         const converter = new Kuroshiro.default();
-        // Kuromoji's path.join corrupts absolute HTTPS URLs on HTTPS pages.
+        // Use a relative path to avoid Kuromoji's URL-joining bug; Static Assets redirects it to jsDelivr.
         await converter.init(new KuromojiAnalyzer({ dictPath: '/dict' }));
         kuroshiro = converter;
         dictionaryStep.dataset.state = 'done';
